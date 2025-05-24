@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: auth
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: Auth123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/auth/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # MongoDB
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: auth_user
+      RABBITMQ_DEFAULT_PASS: Auth123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # Auth Service
+  auth:
+    build: ./src/auth
+    ports:
+      - "5000:5000"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: Auth123
+      MYSQL_DB: auth
+      MYSQL_PORT: 3306
+      JWT_SECRET: myjwtsecret
+    depends_on:
+      - mysql
+
+  # Gateway Service
+  gateway:
+    build: ./src/gateway
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_SVC_ADDRESS: auth:5000
+    depends_on:
+      - auth
+      - mongodb
+      - rabbitmq
+
+  # Converter Service
+  converter:
+    build: ./src/converter
+    environment:
+      VIDEO_QUEUE: video
+      MP3_QUEUE: mp3
+    depends_on:
+      - mongodb
+      - rabbitmq
+
+  # Notification Service
+  notification:
+    build: ./src/notification
+    environment:
+      MP3_QUEUE: mp3
+      GMAIL_ADDRESS: your-email@gmail.com
+      GMAIL_PASSWORD: your-app-password
+    depends_on:
+      - rabbitmq
+
+volumes:
+  mysql_data:
+  mongodb_data:
+  rabbitmq_data:
