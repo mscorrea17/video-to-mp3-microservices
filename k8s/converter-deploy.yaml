@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: converter
+  labels:
+    app: converter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: converter
+  template:
+    metadata:
+      labels:
+        app: converter
+    spec:
+      containers:
+        - name: converter
+          image: converter:latest
+          envFrom:
+            - configMapRef:
+                name: converter-configmap
+            - secretRef:
+                name: converter-secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: converter-configmap
+data:
+  VIDEO_QUEUE: "video"
+  MP3_QUEUE: "mp3"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: converter-secret
+type: Opaque
+stringData:
+  placeholder: "placeholder"
